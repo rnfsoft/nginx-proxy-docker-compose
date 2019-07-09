@@ -1,0 +1,71 @@
+version: "3.1"
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy:alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx-proxy/certs:/etc/nginx/certs
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    restart: unless-stopped
+  
+  db_node_domain:
+    image: mysql:5.7
+    volumes:
+      - ./my-app/db_data:/var/lib/mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: PASSWORD
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: PASSWORD
+    container_name: wordpress_db
+
+  wordpress:
+    depends_on:
+      - db_node_domain
+      - nginx-proxy
+    image: wordpress:latest
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: my-app.local
+      WORDPRESS_DB_HOST: db_node_domain:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: PASSWORD
+    container_name: wordpress
+
+  db_node_domain2:
+    image: mysql:5.7
+    volumes:
+      - ./my-other-app/db_data2:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: PASSWORD
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: PASSWORD
+    container_name: wordpress_db2
+
+  wordpress2:
+    depends_on:
+      - db_node_domain2
+    image: wordpress:latest
+    restart: always
+    environment:
+      VIRTUAL_HOST: my-other-app.local
+      WORDPRESS_DB_HOST: db_node_domain2:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: PASSWORD
+    container_name: wordpress2
+
+
+volumes:
+  db_data:
+  db_data2:
+
+networks:
+  default:
+    external:
+      name: nginx-proxy
